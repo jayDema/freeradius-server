@@ -373,11 +373,15 @@ int rad_postauth(REQUEST *request)
 	case RLM_MODULE_UPDATED:
 		result = RLM_MODULE_OK;
 
-		if (request->reply->code == PW_CODE_ACCESS_CHALLENGE) {
-			fr_state_put_vps(request, request->packet, request->reply);
-
-		} else {
-			fr_state_discard(request, request->packet);
+		/*
+		 *	Only update / remember the state if we're not proxying.
+		 */
+		if (!request->proxy || (request->proxy->dst_port != 0)) {
+			if (request->reply->code == PW_CODE_ACCESS_CHALLENGE) {
+				fr_state_put_vps(request, request->packet, request->reply);
+			} else {
+				fr_state_discard(request, request->packet);
+			}
 		}
 		break;
 	}
@@ -474,7 +478,9 @@ int rad_authenticate(REQUEST *request)
 		 */
 		case PW_CODE_ACCESS_CHALLENGE:
 			request->reply->code = PW_CODE_ACCESS_CHALLENGE;
-			fr_state_put_vps(request, request->packet, request->reply);
+			if (request->proxy->dst_port != 0) {
+				fr_state_put_vps(request, request->packet, request->reply);
+			}
 			return RLM_MODULE_OK;
 
 		/*
